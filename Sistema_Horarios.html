@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GENERADOR DE HORARIOS DE PUERTA - CIBERTEC</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+  >
+
+    <style>
+        :root {
+            --cibertec-azul-oscuro: #002856;
+            --cibertec-azul-claro: #009FE3;
+            --fondo: #F4F6F8;
+            --texto-principal: #333;
+            --borde-suave: #EAEAEA;
+        }
+
+        body {
+            font-family: 'Poppins', Arial, sans-serif;
+            background-color: var(--fondo);
+            margin: 0;
+            padding: 20px;
+            color: var(--texto-principal);
+        }
+
+        .main-title {
+            color: var(--fondo);
+            background-color: var(--cibertec-azul-oscuro);
+            border-radius: 12px;
+            padding: 10px 15px;
+        }
+
+        .main-title h1{
+            margin-left: 50px;
+        }
+
+        .main-title i {
+            font-size: 2.5rem;
+            position: absolute
+
+        }
+
+        .main-container {
+            max-width: 1400px;
+            margin: auto;
+        }
+        
+        .controls {
+            background-color: white;
+            padding: 15px 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .controls input[type="file"]::file-selector-button {
+            background-color: var(--cibertec-azul-claro);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .controls input[type="file"]::file-selector-button:hover {
+            background-color: #007bb8;
+        }
+
+        .controls select, .controls button {
+            padding: 10px 15px;
+            font-size: 0.9rem;
+            font-family: 'Poppins', sans-serif;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .controls button {
+            background-color: var(--cibertec-azul-oscuro);
+            color: white;
+            border: none;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .controls button:hover {
+            background-color: #001f45;
+        }
+
+        /* --- DISEÑO DEL HORARIO --- */
+        #schedule-to-print {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            margin: 20px auto;
+        }
+
+        .schedule-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--borde-suave);
+        }
+
+        .schedule-header img {
+            height: 45px;
+        }
+
+        .schedule-header .aula-title {
+            text-align: right;
+        }
+
+        .schedule-header h2 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .schedule-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            color: var(--cibertec-azul-oscuro);
+        }
+
+        .schedule-grid {
+            display: grid;
+            /* 1 columna para la hora + 7 para los días */
+            grid-template-columns: 60px repeat(7, 1fr); 
+            /* 1 fila para cabecera + 17 para las horas (7am a 11pm) */
+            grid-template-rows: auto repeat(17, 40px);
+            gap: 5px;
+        }
+
+        .grid-cell {
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-transform: uppercase;
+        }
+
+        .day-header {
+            background-color: var(--fondo);
+            padding: 10px 5px;
+            border-radius: 6px;
+        }
+
+        .time-slot {
+            color: #888;
+            font-size: 0.75rem;
+        }
+
+        .class-block {
+            background-color: #f0f0f0;
+            border-radius: 8px;
+            padding: 8px;
+            box-sizing: border-box;
+            color: #333;
+            font-size: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-left: 5px solid;
+        }
+
+        .class-block .curso {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .class-block .docente {
+             opacity: 0.9;
+        }
+         .class-block .hora {
+            margin-top: auto;
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="main-title">
+              <div class="titles">
+                <i class="fa-solid fa-calendar-days"></i>
+                <h1>Sistema de Horarios CIBERTEC</h1>
+              </div>
+    </div>
+    
+    <div class="main-container">
+        <div class="controls">
+            <input type="file" id="fileInput" accept=".xlsx" />
+            <select id="aulaSelect">
+                <option value="">Cargar Excel para ver aulas</option>
+            </select>
+            <button id="exportPDF">Descargar PDF del Aula</button>
+            <button id="exportAllPDF">Descargar Todos los Horarios</button>
+        </div>
+    
+        <div id="schedule-to-print">
+            <div class="schedule-header">
+                <img src="https://reqlut2.s3.sa-east-1.amazonaws.com/reqlut-images/cibertec/logo.png" alt="CIBERTEC Logo">
+                <div class="aula-title">
+                    <h2>Horario de Aula:</h2>
+                    <h1 id="aulaName">BE201</h1>
+                </div>
+            </div>
+            <div class="schedule-grid" id="scheduleGrid"></div>
+        </div>
+    </div>
+    <!--
+    
+    <div id="loadingModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1000; display:flex; align-items:center; justify-content:center; flex-direction:column;">
+        <div style="background:white; padding:30px; border-radius:10px; text-align:center;">
+            <p id="loadingMessage" style="font-size:1.1rem; margin-top:0;">Generando PDFs...</p>
+            <progress id="progressBar" value="0" max="100" style="width:100%;"></progress>
+            <button id="cancelExport" style="margin-top:20px; background-color:#e74c3c; color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;">Cancelar</button>
+        </div>
+    </div>
+    -->
+
+    <script>
+    // Declaramos jspdf en el scope global para que sea accesible
+    const { jsPDF } = window.jspdf;
+    let scheduleData = [];
+    let cancelExportFlag = false;
+
+    // Paleta de colores pasteles y modernos para los cursos
+    const courseColors = [
+        { bg: '#E0F2FE', border: '#38BDF8' }, { bg: '#E0E7FF', border: '#818CF8' },
+        { bg: '#FCE7F3', border: '#F472B6' }, { bg: '#FEE2E2', border: '#F87171' },
+        { bg: '#FEF3C7', border: '#FBBF24' }, { bg: '#D1FAE5', border: '#34D399' },
+        { bg: '#F3E8FF', border: '#C084FC' }, { bg: '#E0F2F1', border: '#26A69A' }
+    ];
+
+    document.getElementById('fileInput').addEventListener('change', function (event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            scheduleData = XLSX.utils.sheet_to_json(worksheet);
+            populateAulas(scheduleData);
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    function populateAulas(data) {
+        const aulaSelect = document.getElementById("aulaSelect");
+        aulaSelect.innerHTML = "<option value=''>Seleccione un aula</option>";
+        const aulas = [...new Set(data.map(row => row.Espacio))].sort();
+        aulas.forEach(aula => {
+            let option = document.createElement("option");
+            option.value = aula;
+            option.innerText = aula;
+            aulaSelect.appendChild(option);
+        });
+        aulaSelect.addEventListener("change", () => plotSchedule(aulaSelect.value));
+        if(aulas.length > 0) {
+            aulaSelect.value = aulas[0];
+            plotSchedule(aulas[0]);
+        }
+    }
+
+    function mergeContinuousSchedules(data) {
+        let mergedData = [];
+        data.sort((a, b) => {
+            const dayOrder = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+            return dayOrder.indexOf(a.Dia) - dayOrder.indexOf(b.Dia) || a.HoraInicio.localeCompare(b.HoraInicio);
+        });
+
+        for (const current of data) {
+            let lastMerged = mergedData[mergedData.length - 1];
+            if (lastMerged && lastMerged.Dia === current.Dia && lastMerged.Curso === current.Curso && lastMerged.Profesor === current.Profesor && lastMerged.HoraFin === current.HoraInicio) {
+                lastMerged.HoraFin = current.HoraFin;
+            } else {
+                mergedData.push({ ...current });
+            }
+        }
+        return mergedData;
+    }
+
+    // --- FUNCIÓN DE RENDERIZADO DEL HORARIO ---
+    function plotSchedule(aula) {
+        if (!aula) {
+            document.getElementById('scheduleGrid').innerHTML = '';
+            document.getElementById('aulaName').innerText = '---';
+            return;
+        };
+
+        document.getElementById('aulaName').innerText = aula;
+        const grid = document.getElementById('scheduleGrid');
+        grid.innerHTML = ''; 
+
+        const days = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+        days.forEach(day => {
+            const dayCell = document.createElement('div');
+            dayCell.className = 'grid-cell day-header';
+            dayCell.innerText = day;
+            grid.appendChild(dayCell);
+        });
+
+        for (let i = 7; i <= 23; i++) {
+            const timeCell = document.createElement('div');
+            timeCell.className = 'grid-cell time-slot';
+            timeCell.innerText = `${i}:00`;
+            grid.appendChild(timeCell);
+            for(let j = 0; j < 7; j++) {
+                const bgCell = document.createElement('div');
+                bgCell.style.borderTop = '1px dashed #EAEAEA';
+                bgCell.style.gridColumn = j + 2;
+                bgCell.style.gridRow = i - 7 + 2;
+                grid.appendChild(bgCell);
+            }
+        }
+
+        let filteredData = scheduleData.filter(row => row.Espacio === aula);
+        let mergedData = mergeContinuousSchedules(filteredData);
+        
+        mergedData.forEach((item, index) => {
+            const dayIndex = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"].indexOf(item.Dia);
+            if (dayIndex === -1) return;
+
+            const start = item.HoraInicio.split(':');
+            const end = item.HoraFin.split(':');
+
+            const startHour = parseInt(start[0]);
+            const endHour = parseInt(end[0]);
+            const endMinutes = parseInt(end[1]);
+            
+            const startRow = startHour - 7 + 2;
+            
+            // ====================== AJUSTES PARA BLOQUES DE HORARIO ======================
+            // Si la hora de fin tiene minutos (ej: 22:30), significa que
+            // ocupa el espacio de esa hora. Por lo tanto, la línea de fin
+            // en el grid debe ser la de la siguiente hora (23:00).
+            let endRow;
+            if (endMinutes > 30) {
+                endRow = endHour + 1 - 7 + 2;
+            } else {
+                endRow = endHour - 7 + 2;
+            }
+            // ===============================================================
+
+            const classBlock = document.createElement('div');
+            classBlock.className = 'class-block';
+            
+            classBlock.style.gridColumn = dayIndex + 2;
+            classBlock.style.gridRow = `${startRow} / ${endRow}`;
+
+            const color = courseColors[index % courseColors.length];
+            classBlock.style.backgroundColor = color.bg;
+            classBlock.style.borderColor = color.border;
+
+            classBlock.innerHTML = `
+                <span class="curso">${item.Curso}</span>
+                <span class="docente">${item.Profesor}</span>
+                <span class="hora">${item.HoraInicio} - ${item.HoraFin}</span>
+            `;
+            grid.appendChild(classBlock);
+        });
+    }
+    
+    async function captureScheduleAsImage() {
+        const elementToPrint = document.getElementById("schedule-to-print");
+        const canvas = await html2canvas(elementToPrint, {
+            scale: 2.5,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff'
+        });
+        return canvas.toDataURL("image/png", 1.0);
+    }
+
+    async function addImageToPdf(doc, imgData) {
+        const margin = 10;
+        const pageWidth = doc.internal.pageSize.getWidth() - (margin * 2);
+        const pageHeight = doc.internal.pageSize.getHeight() - (margin * 2);
+
+        const img = new Image();
+        img.src = imgData;
+        await new Promise(resolve => img.onload = resolve);
+        
+        const imgWidth = img.width;
+        const imgHeight = img.height;
+        const ratio = imgWidth / imgHeight;
+
+        let finalWidth = pageWidth;
+        let finalHeight = finalWidth / ratio;
+
+        if (finalHeight > pageHeight) {
+            finalHeight = pageHeight;
+            finalWidth = finalHeight * ratio;
+        }
+
+        const x = (doc.internal.pageSize.getWidth() - finalWidth) / 2;
+        const y = (doc.internal.pageSize.getHeight() - finalHeight) / 2;
+
+        doc.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight);
+    }
+
+    document.getElementById("exportPDF").addEventListener("click", async function () {
+        const aula = document.getElementById("aulaSelect").value;
+        if (!aula) {
+            alert("Por favor, seleccione un aula primero.");
+            return;
+        }
+        await plotSchedule(aula);
+        await new Promise(resolve => setTimeout(resolve, 100)); 
+
+        const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+        const imgData = await captureScheduleAsImage();
+        
+        await addImageToPdf(doc, imgData);
+        doc.save(`Horario_${aula}.pdf`);
+    });
+
+    document.getElementById("exportAllPDF").addEventListener("click", async function () {
+        const aulas = Array.from(document.querySelectorAll("#aulaSelect option"))
+                           .map(opt => opt.value).filter(Boolean);
+        if (aulas.length === 0) {
+            alert("No hay aulas para exportar. Por favor, cargue un archivo Excel.");
+            return;
+        }
+
+        const modal = document.getElementById("loadingModal");
+        const message = document.getElementById("loadingMessage");
+        const progressBar = document.getElementById("progressBar");
+        modal.style.display = "flex";
+        cancelExportFlag = false;
+
+        const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+        for (let i = 0; i < aulas.length; i++) {
+            if (cancelExportFlag) {
+                console.log("Exportación cancelada por el usuario.");
+                break;
+            }
+            const aula = aulas[i];
+            message.innerText = `Generando PDF para el aula: ${aula} (${i + 1} de ${aulas.length})`;
+            progressBar.value = ((i + 1) / aulas.length) * 100;
+            
+            await plotSchedule(aula);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const imgData = await captureScheduleAsImage();
+            
+            if (i > 0) doc.addPage();
+            await addImageToPdf(doc, imgData);
+        }
+
+        modal.style.display = "none";
+        if (!cancelExportFlag) {
+            doc.save("Horarios_Completos_CIBERTEC.pdf");
+        }
+    });
+
+    document.getElementById("cancelExport").addEventListener("click", () => {
+         cancelExportFlag = true;
+         document.getElementById("loadingModal").style.display = "none";
+    });
+</script>
+</body>
+</html>
